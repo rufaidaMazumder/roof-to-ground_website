@@ -1,104 +1,123 @@
 "use client";
-import React from 'react';
-import {
-  Button,
-  Description,
-  FieldError,
-  FieldGroup,
-  Fieldset,
-  Form,
-  Input,
-  Label,
-  TextArea,
-  TextField,
-} from "@heroui/react";
-import {signUp } from '../../../app/lib/auth-client';
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import AuthShell from "@/app/components/auth/AuthShell";
+import Field from "@/app/components/auth/Field";
+import { signUp } from "@/app/lib/auth-client";
 
-const SignUp = () => {
-      const onSubmit = async (e) => {
+const titles = {
+  customer: "Join as customer",
+  vendor: "Join as seller",
+  professional: "Join as professional",
+};
+const professions = ["Civil Engineer", "Architect","Painter", "Plumber", "Electrician"];
+const categories = ["Cement", "Steel & rods", "Bricks & blocks", "Sand & aggregates", "Roofing", "Plumbing", "Electrical", "Paint", "Tools", "Glass"];
+
+function SignUpForm() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const roleParam = useSearchParams().get("role");
+  const role = ["vendor", "professional"].includes(roleParam) ? roleParam : "customer";
+
+  const onSubmit = async (e) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const data= {};
-    // Convert FormData to plain object
-    formData.forEach((value, key) => {
-      data[key] = value.toString();
-    });
-    const { data:signUpData, error } =await signUp.email({
-    name:data.name,                     // required, The name of the user.
-    email: data.email,                  // required, The email address of the user.
-    password: data.password,            // required, The password of the user. It should be at least 8 characters long and max 128 by default.
-    //image: ,                             An optional profile image of the user.
-    callbackURL: "/",                   // An optional URL to redirect to after the user signs up.
-});
-    console.log(signUpData,error)
+    const d = Object.fromEntries(new FormData(e.currentTarget));
 
-    //alert("Form submitted successfully!");
+    if (d.password !== d.confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
+    if (d.password.length < 8 || !/[A-Z]/.test(d.password) || !/[0-9]/.test(d.password)) {
+      alert("Password needs 8+ characters, 1 uppercase letter and 1 number");
+      return;
+    }
+
+    setLoading(true);
+    const { error } = await signUp.email({
+      name: `${d.firstName} ${d.lastName}`,
+      email: d.email,
+      password: d.password,
+      role,
+      phone: d.phone,
+      city: d.city,
+      profession: d.profession,
+      experience: d.experience,
+      gender: d.gender,
+      shopName: d.shopName,
+      shopAddress: d.shopAddress,
+      businessCategory: d.businessCategory,
+    });
+    setLoading(false);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    router.push(`/verify-email?email=${encodeURIComponent(d.email)}`);
   };
 
-    return (
-        <div className='flex justify-center'>
-              <Form className="w-full max-w-96" onSubmit={onSubmit}>
-      <Fieldset>
-        <Fieldset.Legend>Profile Settings</Fieldset.Legend>
-        <Description>Update your profile information.</Description>
-        <FieldGroup>
-          <TextField
-            isRequired
-            name="name"
-            validate={(value) => {
-              if (value.length < 3) {
-                return "Name must be at least 3 characters";
-              }
-              return null;
-            }}
-          >
-            <Label>Name</Label>
-            <Input placeholder="John Doe" />
-            <FieldError />
-          </TextField>
-          <TextField isRequired name="email" type="email">
-            <Label>Email</Label>
-            <Input placeholder="john@example.com" />
-            <FieldError />
-          </TextField>
-          <TextField
-        isRequired
-        minLength={8}
-        name="password"
-        type="password"
-        validate={(value) => {
-          if (value.length < 8) {
-            return "Password must be at least 8 characters";
-          }
-          if (!/[A-Z]/.test(value)) {
-            return "Password must contain at least one uppercase letter";
-          }
-          if (!/[0-9]/.test(value)) {
-            return "Password must contain at least one number";
-          }
-          return null;
-        }}
-      >
-        <Label>Password</Label>
-        <Input placeholder="Enter your password" />
-        <Description>Must be at least 8 characters with 1 uppercase and 1 number</Description>
-        <FieldError />
-      </TextField>
-        
-        </FieldGroup>
-        <Fieldset.Actions>
-          <Button type="submit">
-            
-            Save changes
-          </Button>
-          <Button type="reset" variant="secondary">
-            Cancel
-          </Button>
-        </Fieldset.Actions>
-      </Fieldset>
-    </Form>
-        </div>
-    );
-};
+  return (
+    <AuthShell title={titles[role]} mode="sign-up" role={role}>
+      <form onSubmit={onSubmit} className="grid grid-cols-2 gap-4">
+        <Field label="First name" name="firstName" placeholder="Rufaida" />
+        <Field label="Last name" name="lastName" placeholder="Mazumder" />
 
-export default SignUp;
+        {role === "professional" && (
+          <Field className="col-span-2" label="Select your profession" name="profession" placeholder="Choose profession" options={professions} />
+        )}
+        {role === "vendor" && (
+          <Field className="col-span-2" label="Business / Shop name" name="shopName" placeholder="Enter your shop name" />
+        )}
+
+        <Field className="col-span-2" label="Email address" name="email" type="email" placeholder="you@example.com" />
+        <Field className="col-span-2" label="Contact number" name="phone" placeholder="+8801XXXXXXXXX" />
+
+        {role === "vendor" ? (
+          <>
+            <Field className="col-span-2" label="Shop address" name="shopAddress" placeholder="Sylhet / Sylhet Sadar / Shahjalal Uposhohor" />
+            <Field className="col-span-2" label="Business category" name="businessCategory" placeholder="Select category" options={categories} />
+          </>
+        ) : (
+          <Field className="col-span-2" label="City / Area" name="city" placeholder="Sylhet / Sylhet Sadar / Noyashorok" />
+        )}
+
+        {role === "professional" && (
+          <>
+            <Field label="Years of experience" name="experience" placeholder="1 / 2 / 3 ..." />
+            <Field label="Gender" name="gender" placeholder="Select" options={["Male", "Female", "Other"]} />
+          </>
+        )}
+
+        <Field className="col-span-2" label="Password" name="password" type="password" placeholder="At least 8 characters" />
+        <Field className="col-span-2" label="Confirm password" name="confirmPassword" type="password" placeholder="Repeat your password" />
+
+        <p className="col-span-2 text-xs text-gray-500">
+          By continuing, you agree to the Terms of service and acknowledge the Privacy policy.
+        </p>
+        <button
+          type="submit"
+          disabled={loading}
+          className="col-span-2 rounded-md bg-[#E8692D] py-3 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {loading ? "Creating account..." : "Sign Up"}
+        </button>
+        <button
+          type="button"
+          disabled
+          title="Coming later"
+          className="col-span-2 rounded-md border border-gray-200 py-3 text-sm text-gray-400"
+        >
+          Continue with Google (coming later)
+        </button>
+      </form>
+    </AuthShell>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignUpForm />
+    </Suspense>
+  );
+}
