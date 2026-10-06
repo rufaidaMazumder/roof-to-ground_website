@@ -12,9 +12,10 @@ import {
   TextArea,
   TextField,
 } from "@heroui/react";
+import {signUp } from '../../../app/lib/auth-client';
 
 const SignUp = () => {
-      const onSubmit = (e) => {
+      const onSubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const data= {};
@@ -22,7 +23,14 @@ const SignUp = () => {
     formData.forEach((value, key) => {
       data[key] = value.toString();
     });
-    console.log(data)
+    const { data:signUpData, error } =await signUp.email({
+    name:data.name,                     // required, The name of the user.
+    email: data.email,                  // required, The email address of the user.
+    password: data.password,            // required, The password of the user. It should be at least 8 characters long and max 128 by default.
+    //image: ,                             An optional profile image of the user.
+    callbackURL: "/",                   // An optional URL to redirect to after the user signs up.
+});
+    console.log(signUpData,error)
 
     //alert("Form submitted successfully!");
   };
